@@ -1,0 +1,6 @@
+flask
+spacy
+transformers
+torch
+pdfminer.six
+python-docx
