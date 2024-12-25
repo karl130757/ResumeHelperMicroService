@@ -1,82 +1,70 @@
 
-AI-Powered Resume Analyzer
-==========================
+# ResumeHelperMicroService
 
-This project implements an AI-based resume analysis tool that helps optimize resumes for ATS (Applicant Tracking System) scans. The tool analyzes the resume in relation to a provided job description and provides actionable feedback on how to improve the resume’s alignment with the job description and increase its chances of passing through ATS filters.
+## Overview
+ResumeHelperMicroService is an AI-powered resume analysis tool designed to help candidates improve their resumes to pass through Applicant Tracking Systems (ATS). By leveraging advanced natural language processing (NLP) techniques, the service provides actionable feedback to optimize resumes for better ATS compatibility. This includes suggestions for keywords, experience, skills, structure, and more.
 
-Features
---------
-- **ATS Compatibility**: The tool analyzes the resume and suggests specific keywords and phrases that should be added to improve compatibility with ATS systems.
-  
-- **Experience Improvement**: It offers suggestions on how to highlight or improve relevant work experience, including recommendations on action verbs and quantifiable achievements.
-  
-- **Skills Optimization**: The AI suggests additional technical and soft skills that should be included in the resume based on the job description to match the desired qualifications.
-  
-- **Structure Enhancement**: The tool provides recommendations on improving the overall structure of the resume, including section order, clarity, layout, and adding additional sections like "Projects" or "Achievements."
-  
-- **Personalized Feedback**: Based on the job description, the tool gives personalized suggestions to tailor the resume more effectively for the specific role.
+## Features
+- **ATS Compatibility Feedback**: The tool provides recommendations on keywords and phrases that should be added to the resume for better ATS performance.
+- **Experience Section Feedback**: Suggestions on how to improve or highlight relevant work experience for the position.
+- **Skills Feedback**: A list of recommended skills to include based on the job description.
+- **Overall Structure Feedback**: Insights on how to improve the layout and organization of the resume for better clarity and impact.
+- **Spacy-based ATS Score Calculation**: Utilizes SpaCy to compute the ATS compatibility score based on resume content and job description. This allows the system to quantify how well the resume matches the job's requirements.
 
-- **ATS Score Calculation**: The system computes an ATS compatibility score using spaCy, assessing how well the resume aligns with the job description by analyzing keyword presence, entity recognition, and syntactic structure.
+## Technologies Used
+- **Flask**: Flask is used to build the backend API that processes resume data and job descriptions.
+- **SpaCy**: SpaCy, a powerful NLP library, is used to compute the ATS score and provide suggestions for text improvement.
+- **Python**: The core logic of the microservice is implemented in Python, combining SpaCy's NLP capabilities with custom logic for analyzing resumes and job descriptions.
+- **AI Models**: Pre-trained models from SpaCy are used for language processing tasks like tokenization, part-of-speech tagging, and named entity recognition to evaluate resume content.
 
-AI Models Used
---------------
-The tool uses **GPT-J**, a large-scale language model, and **spaCy**, an open-source library for advanced Natural Language Processing (NLP). GPT-J is used for generating suggestions on how to improve the resume, while spaCy is used to pre-process, analyze text, and calculate the ATS compatibility score by evaluating keyword relevance, skill matching, and job description alignment.
+## How It Works
+1. **Input**: Users provide their resume and the job description in a structured format (e.g., text or JSON).
+2. **Processing**: The resume is parsed, and SpaCy is used to extract key information, analyze the structure, and compute an ATS score.
+3. **Feedback**: The system generates suggestions for improving the resume in specific areas like ATS compatibility, experience, skills, and overall structure.
+4. **Output**: Feedback is returned to the user in a structured format, providing clear instructions for improvement.
 
-### Model Details
-- **GPT-J**
-  - **Model Name**: GPT-J
-  - **Type**: Transformer-based language model
-  - **Version**: GPT-J 6B (6 billion parameters)
-  - **Architecture**: GPT (Generative Pretrained Transformer)
-  - **Usage**: GPT-J provides specific, actionable feedback for improving resume content, structure, and alignment with job descriptions.
+## Installation
 
-- **spaCy**
-  - **Library**: spaCy (used for text processing)
-  - **Usage**: spaCy is used to pre-process and analyze the resume content, including named entity recognition (NER), part-of-speech tagging, and syntactic analysis. It plays a key role in computing the ATS score by evaluating the relevance of keywords and the alignment between the resume and job description.
+To get started with the ResumeHelperMicroService, clone the repository and set up the environment:
 
-Requirements
-------------
-To run the project locally, ensure the following are installed:
-- Python 3.7+
-- Required Python Libraries (listed in `requirements.txt`)
-- Access to the GPT-J model (or equivalent transformer model for text generation)
-- spaCy (for text analysis and ATS score calculation)
-
-### Setup
 1. Clone the repository:
    ```
-   git clone https://github.com/karl130757/ResumeHelperMicroService.git
-   cd ResumeHelperMicroService
+   git clone https://github.com/yourusername/ResumeHelperMicroService.git
    ```
 
 2. Install dependencies:
    ```
+   cd ResumeHelperMicroService
    pip install -r requirements.txt
    ```
 
-3. Run the tool:
+3. Install SpaCy and download the language model:
+   ```
+   python -m spacy download en_core_web_sm
+   ```
+
+4. Run the Flask application:
    ```
    python app.py
    ```
 
-How It Works
--------------
-1. The tool takes a resume and job description as input.
-2. The resume is analyzed using **spaCy** for text processing (such as extracting skills, job titles, and experiences) and to calculate the ATS score based on keyword and content relevance.
-3. The processed content is fed to **GPT-J**, which compares the resume with the job description and generates feedback based on the analysis.
-4. Based on the analysis, the model provides feedback in four key areas:
-   - ATS Compatibility
-   - Experience
-   - Skills
-   - Overall Structure
-5. The feedback is presented in a structured format for easy integration into the resume.
+5. Access the service locally at:
+   ```
+   http://127.0.0.1:5000
+   ```
 
-Future Enhancements
--------------------
-- Expand the model to support multiple job categories and industries.
-- Include recommendations on resume formatting and visual appeal.
-- Enhance feedback quality by training on domain-specific datasets.
+## Usage
 
-License
--------
-This project is licensed under the MIT License - see the LICENSE file for details.
+To use the ResumeHelperMicroService, send a POST request to the `/analyze` endpoint with the resume and job description as parameters. The API will return feedback for the specified sections.
+
+Example:
+```
+POST /analyze
+{
+   "resume": "Python developer with 5 years of experience...",
+   "job_description": "Looking for a Python developer..."
+}
+```
+
+## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
