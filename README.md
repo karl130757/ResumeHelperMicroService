@@ -4,18 +4,26 @@
 ## Overview
 **ResumeHelperMicroService** is an AI-powered tool designed to help job candidates optimize their resumes for Applicant Tracking Systems (ATS). It analyzes the resume and job description and provides actionable feedback to improve ATS compatibility. The service uses SpaCy for NLP tasks and calculates an ATS score based on the input.
 
-## Features
-- **ATS Compatibility Feedback**: Recommends keywords and phrases to improve ATS compatibility.
-- **Experience Section Feedback**: Suggests how to enhance work experience.
-- **Skills Feedback**: Identifies missing or relevant skills to include.
-- **Overall Structure Feedback**: Provides tips on improving resume layout and structure.
-- **Spacy-based ATS Score Calculation**: Calculates an ATS score to assess how well the resume matches the job description.
+## Features:
+- **ATS Compatibility**: Suggests keywords and phrases that should be included in the resume for better ATS compatibility.
+- **Work Experience Improvement**: Offers suggestions on how to enhance work experience descriptions, including recommendations for quantifiable achievements and impactful action verbs.
+- **Skills Matching**: Identifies additional technical and soft skills that should be added to the resume to better match the job description.
+- **Resume Structure Suggestions**: Provides recommendations on improving the overall structure, section organization, and clarity of the resume.
+- **Personal Statement Feedback**: Recommends improvements to the personal statement, including suggestions for making it more compelling and tailored to the job description.
+- **ATS Score Calculation**: Computes an ATS score using both GPT-J and spaCy to analyze and score the resume's compatibility with the job description.
+- **Actionable Recommendations**: Offers concise and direct feedback on all sections of the resume to increase its chances of passing an ATS scan.
+
+## AI Models Used:
+- **GPT-J**: Used for generating actionable feedback on the resume, including suggestions on keywords, skills, work experience, and overall structure.
+- **spaCy**: Employed to compute the ATS score by analyzing the content of the resume and job description, identifying relevant keywords, and comparing them to the industry standards.
+
 
 ## Technologies Used
 - **Flask**: Backend framework for the web service.
 - **SpaCy**: NLP library used for resume analysis and calculating the ATS score.
 - **Python**: Backend logic for integrating SpaCy with custom analysis.
-- **AI Models**: Pre-trained SpaCy models for text analysis (tokenization, entity recognition, etc.).
+
+
 
 ## How It Works
 1. **Input**: Users can upload a resume file (e.g., `.txt`, `.pdf`, `.docx`) and a job description (either text or file upload).
