@@ -1,5 +1,5 @@
 
-AI-Powered Resume Analyzer MicroService
+AI-Powered Resume Analyzer
 ==========================
 
 This project implements an AI-based resume analysis tool that helps optimize resumes for ATS (Applicant Tracking System) scans. The tool analyzes the resume in relation to a provided job description and provides actionable feedback on how to improve the resume’s alignment with the job description and increase its chances of passing through ATS filters.
@@ -42,7 +42,21 @@ To run the project locally, ensure the following are installed:
 - Access to the GPT-J model (or equivalent transformer model for text generation)
 - spaCy (for text analysis and ATS score calculation)
 
+### Setup
+1. Clone the repository:
+   ```
+   git clone https://github.com/karl130757/ResumeHelperMicroService.git
+   cd ResumeHelperMicroService
+   ```
 
+2. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+3. Run the tool:
+   ```
+   python app.py
    ```
 
 How It Works
