@@ -1,6 +1,11 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from flask import Flask
 from src.routes import analysis_bp
 from src.config import Config
+
 
 def create_app():
     app = Flask(__name__)
