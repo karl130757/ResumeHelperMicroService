@@ -10,7 +10,7 @@ def get_gpt_model():
             "text-generation",
             model="EleutherAI/gpt-neo-2.7B",  # GPT-J equivalent
             device=0,  # Use GPU if available,
-            max_new_tokens=100,
+            max_new_tokens=300,
             truncation=True
         )
     return _gpt_model

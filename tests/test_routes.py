@@ -11,8 +11,19 @@ class TestRoutes(unittest.TestCase):
     def test_analyze_with_text(self):
         # Define the payload for the API request
         payload = {
-            "resume_text": "Python developer with 5 years of experience.",
-            "job_description": "Looking for a Python developer."
+            "resume_text": (
+                "Python developer with 5 years of experience in designing, "
+                "developing, and maintaining scalable applications. Proficient in frameworks such as Django, Flask, and FastAPI. "
+                "Skilled in integrating APIs, working with relational and non-relational databases like PostgreSQL and MongoDB, and "
+                "deploying applications using Docker and Kubernetes. Strong knowledge of cloud services such as AWS and GCP. "
+                "Proven experience in collaborating with cross-functional teams to deliver high-quality software solutions."
+            ),
+            "job_description": (
+                "Looking for a skilled Python developer to join our dynamic team. The ideal candidate should have a minimum of 3-5 years of experience "
+                "working with Python frameworks such as Django or Flask. Responsibilities include developing RESTful APIs, integrating with third-party services, "
+                "managing databases, and deploying scalable applications. Experience with cloud platforms, CI/CD pipelines, and containerization tools like Docker is a plus. "
+                "Excellent problem-solving skills and the ability to work collaboratively in an agile environment are required."
+            )
         }
         
         # Make a POST request to the analyze route
