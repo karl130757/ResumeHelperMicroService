@@ -53,8 +53,8 @@
 To use the **ResumeHelperMicroService**, send a POST request to the `/analyze` endpoint. Users can upload files or provide the resume and job description as text in the request.
 
 ### Example Request (Text):
-```json
 POST /analyze
+```json
 {
    "resume": "Python developer with 5 years of experience...",
    "job_description": "Looking for a Python developer..."
