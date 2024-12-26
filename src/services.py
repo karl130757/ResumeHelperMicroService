@@ -5,8 +5,11 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 
+from transformers import DistilBertTokenizer, DistilBertModel
+import torch
+from sklearn.metrics.pairwise import cosine_similarity
+
 from src.spacy_model import get_spacy_model
-from src.gpt_model import get_gpt_model
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -20,45 +23,119 @@ def cached_spacy_model():
     """Cache the SpaCy model for faster reuse."""
     return get_spacy_model()
 
+# Cache DistilBERT tokenizer and model for efficiency
 @lru_cache(maxsize=None)
-def cached_gpt_model():
-    """Cache the GPT model for faster reuse."""
-    return get_gpt_model()
+def cached_distilbert_model():
+    """Cache the DistilBERT model and tokenizer for faster reuse."""
+    tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+    model = DistilBertModel.from_pretrained('distilbert-base-uncased')
+    return tokenizer, model
+
+def get_embeddings(text: str) -> torch.Tensor:
+    """Generate embeddings using DistilBERT."""
+    tokenizer, model = cached_distilbert_model()  # Use cached model and tokenizer
+    inputs = tokenizer(text, return_tensors='pt', truncation=True, padding=True, max_length=512)
+    with torch.no_grad():
+        outputs = model(**inputs)
+    return outputs.last_hidden_state.mean(dim=1)  # Averaging token embeddings
+
+def calculate_ats_score(resume_keywords: List[str], job_desc_keywords: List[str]) -> float:
+    """
+    Calculate a normalized ATS score based on the number of relevant keywords in both the resume and the job description.
+    """
+    common_keywords = set(resume_keywords) & set(job_desc_keywords)
+    total_keywords = set(job_desc_keywords)
+    
+    if total_keywords:
+        return (len(common_keywords) / len(total_keywords)) * 100  # Percentage of common keywords
+    else:
+        return 0  # No keywords to match
 
 def generate_feedback(resume_text: str, job_description: str) -> str:
     """
-    Generate a GPT prompt for feedback on the resume against the job description.
+    Analyze resume and job description using DistilBERT and generate semantic similarity-based feedback.
     """
-    prompt = f"""
-    You are an AI-powered resume analyzer. 
-    Your goal is to evaluate the following resume and job description and provide actionable feedback to improve the resume's ATS compatibility and relevance to the job description.
+    # Get embeddings for both the resume and job description
+    resume_embedding = get_embeddings(resume_text)
+    job_desc_embedding = get_embeddings(job_description)
 
-    Resume:
-    {resume_text}
+    # Calculate cosine similarity between the resume and job description embeddings
+    similarity_score = cosine_similarity(resume_embedding, job_desc_embedding)[0][0]
 
-    Job Description:
-    {job_description}
+    ats_feedback = f"ATS Compatibility:\nThe resume's alignment with the job description is {similarity_score * 100:.2f}% based on semantic similarity."
 
-    Provide detailed feedback in the following sections. If you cannot infer specific details for a section, provide general improvement suggestions relevant to the topic.
+    # Dynamic suggestions based on job description and resume content
 
-    1. **ATS Compatibility**:
-       - List specific keywords and phrases the resume should include for better ATS performance.
-    2. **Experience**:
-       - Suggest improvements to highlight relevant work experience.
-    3. **Skills**:
-       - Recommend additional technical and soft skills based on the job description.
-    4. **Overall Structure**:
-       - Provide recommendations to improve the section order, layout, or clarity.
+    # Extract key experience and skills from both resume and job description
+    resume_experience = analyze_keywords_with_spacy(resume_text)
+    job_desc_experience = analyze_keywords_with_spacy(job_description)
 
-    Ensure the response is formatted as JSON with keys for each section:
-    {{
-        "ATS Compatibility": "<specific feedback>",
-        "Experience": "<specific feedback>",
-        "Skills": "<specific feedback>",
-        "Overall Structure": "<specific feedback>"
-    }}
+    # Experience Feedback: Look for missing key experience areas
+    missing_experience = [
+        skill for skill, _ in job_desc_experience["keywords"]
+        if skill not in [word for word, _ in resume_experience["keywords"]]
+    ]
+    if missing_experience:
+        experience_feedback = f"Experience: The resume mentions some key technologies, but make sure to emphasize experience with the following: {', '.join(missing_experience)}. Consider adding relevant projects or achievements to demonstrate your expertise in these areas."
+    else:
+        experience_feedback = "Experience: The resume aligns well with the experience required for the job. Consider highlighting specific projects or responsibilities that showcase your experience with the listed technologies."
+
+    # Skills Feedback: Compare resume skills to job description
+    missing_skills = [
+        skill for skill, _ in job_desc_experience["keywords"]
+        if skill not in [word for word, _ in resume_experience["keywords"]]
+    ]
+    if missing_skills:
+        skills_feedback = f"Skills: Consider adding specific experience with the following skills to match the job description: {', '.join(missing_skills)}. Include any specific tools or technologies you have worked with."
+    else:
+        skills_feedback = "Skills: The resume lists many of the relevant skills required for the job. Consider adding further details, such as specific tools or technologies used in your projects."
+
+    # Structure Feedback: Look for structure gaps (e.g., missing certifications, education, etc.)
+    if "certifications" not in resume_text.lower():
+        structure_feedback = "Overall Structure: The resume could benefit from a section highlighting relevant certifications or training courses."
+    elif "education" not in resume_text.lower():
+        structure_feedback = "Overall Structure: Ensure that the education section is clearly outlined if it is relevant to the job."
+    else:
+        structure_feedback = "Overall Structure: The resume is well-structured, but ensuring that relevant certifications or training courses are emphasized can further enhance its impact."
+
+    return f"""
+    **ATS Compatibility:**
+    {ats_feedback}
+
+    **Experience:**
+    {experience_feedback}
+
+    **Skills:**
+    {skills_feedback}
+
+    **Overall Structure:**
+    {structure_feedback}
     """
-    return prompt
+
+
+def generate_experience_feedback(missing_experience: List[str]) -> str:
+    if missing_experience:
+        experience_feedback = f"Experience: The resume mentions some key technologies, but make sure to emphasize experience with the following: "
+        experience_feedback += ', '.join(missing_experience) + ". Consider including relevant projects or achievements to show your expertise."
+    else:
+        experience_feedback = "Experience: The resume aligns well with the experience required for the job. Keep up the good work!"
+    return experience_feedback
+
+def generate_skills_feedback(missing_skills: List[str]) -> str:
+    if missing_skills:
+        skills_feedback = f"Skills: Consider adding specific experience with the following skills to match the job description: {', '.join(missing_skills)}."
+    else:
+        skills_feedback = "Skills: The resume lists many of the relevant skills required for the job."
+    return skills_feedback
+
+def generate_structure_feedback(resume_text: str) -> str:
+    if "certifications" not in resume_text.lower():
+        structure_feedback = "Overall Structure: The resume could benefit from a section highlighting relevant certifications or training courses."
+    elif "education" not in resume_text.lower():
+        structure_feedback = "Overall Structure: Ensure that the education section is clearly outlined if it is relevant to the job."
+    else:
+        structure_feedback = "Overall Structure: The resume is well-structured, but ensuring that relevant certifications or training courses are emphasized can further enhance its impact."
+    return structure_feedback
 
 def clean_feedback(raw_feedback: str) -> Dict:
     """
@@ -68,22 +145,33 @@ def clean_feedback(raw_feedback: str) -> Dict:
 
 def refine_entities(entities: List[Dict[str, str]]) -> List[Dict[str, str]]:
     """
-    Filter and refine extracted entities.
+    Refine extracted entities by categorizing technologies and tools
+    into the correct labels.
     """
-    return [
-        ent for ent in entities
-        if not (ent["label"] == "ORG" and ("Key Responsibilities" in ent["text"] or ent["text"].startswith("�")))
-        and not (ent["label"] == "MONEY" and re.match(r"^\d{3,}$", ent["text"]))
-    ]
+    refined_entities = []
+    technology_keywords = {'Docker', 'Kubernetes', 'AWS', 'GCP', 'Flask', 'Django', 'FastAPI'}  # Add any other technologies
+    for ent in entities:
+        # Correct misclassified entities
+        if ent["label"] == "PERSON" and ent["text"] in technology_keywords:
+            ent["label"] = "TECHNOLOGY"  # Correct misclassification
+        elif ent["label"] == "ORG" and ent["text"] in technology_keywords:
+            ent["label"] = "TOOL"  # Reclassify as tool if it's a known tool
+        elif ent["label"] == "GPE" and ent["text"] in technology_keywords:
+            ent["label"] = "TECHNOLOGY"  # Fix misclassification as geopolitical entity
+
+        refined_entities.append(ent)
+
+    return refined_entities
 
 def extract_named_entities(resume_text: str) -> List[Dict[str, str]]:
     """
-    Extract and refine named entities using SpaCy.
+    Extract and refine named entities using SpaCy and customized corrections.
     """
     spacy_model = cached_spacy_model()
     doc = spacy_model(resume_text)
     entities = [{"text": ent.text, "label": ent.label_} for ent in doc.ents]
     return refine_entities(entities)
+
 
 def analyze_keywords_with_spacy(resume_text: str) -> Dict:
     """
@@ -105,7 +193,7 @@ def analyze_keywords_with_spacy(resume_text: str) -> Dict:
 
 def validate_feedback(response: Dict) -> Dict:
     """
-    Validate GPT feedback, ensuring all sections are included with default text if missing.
+    Validate feedback to ensure all sections are included with default text if missing.
     """
     expected_sections = ["ATS Compatibility", "Experience", "Skills", "Overall Structure"]
     validated_feedback = {section: response.get(section, "No specific feedback provided.") for section in expected_sections}
@@ -119,26 +207,24 @@ def analyze_resume(resume_text: str, job_description: str) -> Dict:
     try:
         # Use ThreadPoolExecutor for parallel processing
         with ThreadPoolExecutor() as executor:
-            # Parallelize SpaCy and GPT tasks
+            # Parallelize SpaCy and DistilBERT tasks
             spacy_future = executor.submit(analyze_keywords_with_spacy, resume_text)
-            gpt_future = executor.submit(
-                cached_gpt_model(),
-                generate_feedback(resume_text, job_description),
-                max_length=500,
-                num_return_sequences=1,
-            )
+            distilbert_future = executor.submit(generate_feedback, resume_text, job_description)
 
             # Get results from both futures
             spacy_results = spacy_future.result()
-            feedback = gpt_future.result()
+            feedback = distilbert_future.result()
 
         if not feedback:
-            raise ValueError("GPT model returned empty feedback.")
+            raise ValueError("DistilBERT returned empty feedback.")
 
-        cleaned_feedback = clean_feedback(feedback[0]["generated_text"])
+        cleaned_feedback = clean_feedback(feedback)
         validated_feedback = validate_feedback(cleaned_feedback)
 
-        ats_score = sum(freq for _, freq in spacy_results["keywords"]) * 10
+        ats_score = calculate_ats_score(
+            [word for word, _ in spacy_results["keywords"]],
+            [word for word, _ in analyze_keywords_with_spacy(job_description)["keywords"]]
+        )
 
         return {
             "word_count": len(resume_text.split()),
@@ -149,5 +235,7 @@ def analyze_resume(resume_text: str, job_description: str) -> Dict:
             "feedback": validated_feedback,
         }
     except Exception as e:
-        logging.error(f"Error analyzing resume: {e}")
+        logging.error(f"Error during resume analysis: {str(e)}")
         return {"error": str(e)}
+
+
