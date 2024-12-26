@@ -46,180 +46,107 @@ def calculate_ats_score(resume_keywords: List[str], job_desc_keywords: List[str]
     common_keywords = set(resume_keywords) & set(job_desc_keywords)
     total_keywords = set(job_desc_keywords)
     
-    if total_keywords:
-        return (len(common_keywords) / len(total_keywords)) * 100  # Percentage of common keywords
-    else:
-        return 0  # No keywords to match
-
-def generate_feedback(resume_text: str, job_description: str) -> str:
-    """
-    Analyze resume and job description using DistilBERT and generate semantic similarity-based feedback.
-    """
-    # Get embeddings for both the resume and job description
-    resume_embedding = get_embeddings(resume_text)
-    job_desc_embedding = get_embeddings(job_description)
-
-    # Calculate cosine similarity between the resume and job description embeddings
-    similarity_score = cosine_similarity(resume_embedding, job_desc_embedding)[0][0]
-
-    ats_feedback = f"ATS Compatibility:\nThe resume's alignment with the job description is {similarity_score * 100:.2f}% based on semantic similarity."
-
-    # Dynamic suggestions based on job description and resume content
-
-    # Extract key experience and skills from both resume and job description
-    resume_experience = analyze_keywords_with_spacy(resume_text)
-    job_desc_experience = analyze_keywords_with_spacy(job_description)
-
-    # Experience Feedback: Look for missing key experience areas
-    missing_experience = [
-        skill for skill, _ in job_desc_experience["keywords"]
-        if skill not in [word for word, _ in resume_experience["keywords"]]
-    ]
-    if missing_experience:
-        experience_feedback = f"Experience: The resume mentions some key technologies, but make sure to emphasize experience with the following: {', '.join(missing_experience)}. Consider adding relevant projects or achievements to demonstrate your expertise in these areas."
-    else:
-        experience_feedback = "Experience: The resume aligns well with the experience required for the job. Consider highlighting specific projects or responsibilities that showcase your experience with the listed technologies."
-
-    # Skills Feedback: Compare resume skills to job description
-    missing_skills = [
-        skill for skill, _ in job_desc_experience["keywords"]
-        if skill not in [word for word, _ in resume_experience["keywords"]]
-    ]
-    if missing_skills:
-        skills_feedback = f"Skills: Consider adding specific experience with the following skills to match the job description: {', '.join(missing_skills)}. Include any specific tools or technologies you have worked with."
-    else:
-        skills_feedback = "Skills: The resume lists many of the relevant skills required for the job. Consider adding further details, such as specific tools or technologies used in your projects."
-
-    # Structure Feedback: Look for structure gaps (e.g., missing certifications, education, etc.)
-    if "certifications" not in resume_text.lower():
-        structure_feedback = "Overall Structure: The resume could benefit from a section highlighting relevant certifications or training courses."
-    elif "education" not in resume_text.lower():
-        structure_feedback = "Overall Structure: Ensure that the education section is clearly outlined if it is relevant to the job."
-    else:
-        structure_feedback = "Overall Structure: The resume is well-structured, but ensuring that relevant certifications or training courses are emphasized can further enhance its impact."
-
-    return f"""
-    **ATS Compatibility:**
-    {ats_feedback}
-
-    **Experience:**
-    {experience_feedback}
-
-    **Skills:**
-    {skills_feedback}
-
-    **Overall Structure:**
-    {structure_feedback}
-    """
-
-
-def generate_experience_feedback(missing_experience: List[str]) -> str:
-    if missing_experience:
-        experience_feedback = f"Experience: The resume mentions some key technologies, but make sure to emphasize experience with the following: "
-        experience_feedback += ', '.join(missing_experience) + ". Consider including relevant projects or achievements to show your expertise."
-    else:
-        experience_feedback = "Experience: The resume aligns well with the experience required for the job. Keep up the good work!"
-    return experience_feedback
-
-def generate_skills_feedback(missing_skills: List[str]) -> str:
-    if missing_skills:
-        skills_feedback = f"Skills: Consider adding specific experience with the following skills to match the job description: {', '.join(missing_skills)}."
-    else:
-        skills_feedback = "Skills: The resume lists many of the relevant skills required for the job."
-    return skills_feedback
-
-def generate_structure_feedback(resume_text: str) -> str:
-    if "certifications" not in resume_text.lower():
-        structure_feedback = "Overall Structure: The resume could benefit from a section highlighting relevant certifications or training courses."
-    elif "education" not in resume_text.lower():
-        structure_feedback = "Overall Structure: Ensure that the education section is clearly outlined if it is relevant to the job."
-    else:
-        structure_feedback = "Overall Structure: The resume is well-structured, but ensuring that relevant certifications or training courses are emphasized can further enhance its impact."
-    return structure_feedback
-
-def clean_feedback(raw_feedback: str) -> Dict:
-    """
-    Parse raw feedback to extract specific feedback sections.
-    """
-    return {match.group(1): match.group(2).strip() for match in SECTION_REGEX.finditer(raw_feedback)}
-
-def refine_entities(entities: List[Dict[str, str]]) -> List[Dict[str, str]]:
-    """
-    Refine extracted entities by categorizing technologies and tools
-    into the correct labels.
-    """
-    refined_entities = []
-    technology_keywords = {'Docker', 'Kubernetes', 'AWS', 'GCP', 'Flask', 'Django', 'FastAPI'}  # Add any other technologies
-    for ent in entities:
-        # Correct misclassified entities
-        if ent["label"] == "PERSON" and ent["text"] in technology_keywords:
-            ent["label"] = "TECHNOLOGY"  # Correct misclassification
-        elif ent["label"] == "ORG" and ent["text"] in technology_keywords:
-            ent["label"] = "TOOL"  # Reclassify as tool if it's a known tool
-        elif ent["label"] == "GPE" and ent["text"] in technology_keywords:
-            ent["label"] = "TECHNOLOGY"  # Fix misclassification as geopolitical entity
-
-        refined_entities.append(ent)
-
-    return refined_entities
+    return (len(common_keywords) / len(total_keywords)) * 100 if total_keywords else 0
 
 def extract_named_entities(resume_text: str) -> List[Dict[str, str]]:
     """
-    Extract and refine named entities using SpaCy and customized corrections.
+    Extract and refine named entities using SpaCy.
     """
     spacy_model = cached_spacy_model()
     doc = spacy_model(resume_text)
+
+    # Extract entities
     entities = [{"text": ent.text, "label": ent.label_} for ent in doc.ents]
-    return refine_entities(entities)
 
+    # Refine entity categorization dynamically
+    refined_entities = []
+    for ent in entities:
+        label = ent["label"]
+        if label in {"PERSON", "ORG", "PRODUCT", "GPE"}:
+            label = "TECHNOLOGY" if ent["text"].isalpha() else label  # Generalization for tech tools
+        refined_entities.append({"text": ent["text"], "label": label})
 
-def analyze_keywords_with_spacy(resume_text: str) -> Dict:
+    return refined_entities
+
+def analyze_keywords_with_spacy(text: str) -> Dict:
     """
     Extract keywords and entities using SpaCy.
     """
     spacy_model = cached_spacy_model()
-    doc = spacy_model(resume_text)
+    doc = spacy_model(text)
 
+    # Extract keywords (nouns/proper nouns) and filter stop words
     keywords = [
         token.lemma_ for token in doc
         if token.is_alpha and token.pos_ in {"NOUN", "PROPN"} and token.lemma_.lower() not in STOP_WORDS
     ]
-    entities = extract_named_entities(resume_text)
+
+    # Extract entities
+    entities = extract_named_entities(text)
 
     return {
         "keywords": Counter(keywords).most_common(10),
         "entities": entities,
     }
 
-def validate_feedback(response: Dict) -> Dict:
+def generate_feedback(resume_text: str, job_description: str) -> str:
     """
-    Validate feedback to ensure all sections are included with default text if missing.
+    Generate profession-agnostic feedback by comparing the resume and job description.
     """
-    expected_sections = ["ATS Compatibility", "Experience", "Skills", "Overall Structure"]
-    validated_feedback = {section: response.get(section, "No specific feedback provided.") for section in expected_sections}
+    # Get embeddings and calculate similarity
+    resume_embedding = get_embeddings(resume_text)
+    job_desc_embedding = get_embeddings(job_description)
+    similarity_score = cosine_similarity(resume_embedding, job_desc_embedding)[0][0]
 
-    return validated_feedback
+    ats_feedback = f"The resume's alignment with the job description is {similarity_score * 100:.2f}% based on semantic similarity."
+
+    # Analyze keywords
+    resume_analysis = analyze_keywords_with_spacy(resume_text)
+    job_desc_analysis = analyze_keywords_with_spacy(job_description)
+
+    # Identify missing skills/experience
+    resume_keywords = [word for word, _ in resume_analysis["keywords"]]
+    job_desc_keywords = [word for word, _ in job_desc_analysis["keywords"]]
+
+    missing_keywords = list(set(job_desc_keywords) - set(resume_keywords))
+    skills_feedback = (
+        f"Consider emphasizing these missing skills/experiences: {', '.join(missing_keywords)}."
+        if missing_keywords else "The resume matches most of the required skills and experiences."
+    )
+
+    # Structural Feedback
+    structure_feedback = (
+        "Ensure your resume has sections on certifications, training, and education for completeness."
+        if "certifications" not in resume_text.lower() or "education" not in resume_text.lower()
+        else "The resume structure is clear and contains key sections like certifications and education."
+    )
+
+    return f"""
+    **ATS Compatibility:**
+    {ats_feedback}
+
+    **Experience and Skills:**
+    {skills_feedback}
+
+    **Overall Structure:**
+    {structure_feedback}
+    """
 
 def analyze_resume(resume_text: str, job_description: str) -> Dict:
     """
-    Analyze the resume and generate feedback, keyword analysis, and ATS score.
+    Main function to analyze the resume and generate feedback.
     """
     try:
         # Use ThreadPoolExecutor for parallel processing
         with ThreadPoolExecutor() as executor:
-            # Parallelize SpaCy and DistilBERT tasks
             spacy_future = executor.submit(analyze_keywords_with_spacy, resume_text)
             distilbert_future = executor.submit(generate_feedback, resume_text, job_description)
 
-            # Get results from both futures
             spacy_results = spacy_future.result()
             feedback = distilbert_future.result()
 
         if not feedback:
-            raise ValueError("DistilBERT returned empty feedback.")
-
-        cleaned_feedback = clean_feedback(feedback)
-        validated_feedback = validate_feedback(cleaned_feedback)
+            raise ValueError("Failed to generate feedback.")
 
         ats_score = calculate_ats_score(
             [word for word, _ in spacy_results["keywords"]],
@@ -232,10 +159,8 @@ def analyze_resume(resume_text: str, job_description: str) -> Dict:
             "top_keywords": [{"word": word, "count": count} for word, count in spacy_results["keywords"]],
             "named_entities": spacy_results["entities"],
             "ats_score": ats_score,
-            "feedback": validated_feedback,
+            "feedback": feedback.strip(),
         }
     except Exception as e:
         logging.error(f"Error during resume analysis: {str(e)}")
         return {"error": str(e)}
-
-
