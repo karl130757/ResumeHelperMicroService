@@ -121,16 +121,23 @@ def generate_feedback(resume_text: str, job_description: str) -> str:
         else "The resume structure is clear and contains key sections like certifications and education."
     )
 
-    return f"""
-    **ATS Compatibility:**
-    {ats_feedback}
 
-    **Experience and Skills:**
-    {skills_feedback}
+    return {
+        "atsCompatibility": ats_feedback,
+        "experienceAndSkills": skills_feedback,
+        "overAllStructure": structure_feedback
+    }
 
-    **Overall Structure:**
-    {structure_feedback}
-    """
+    # return f"""
+    # **ATS Compatibility:**
+    # {ats_feedback}
+
+    # **Experience and Skills:**
+    # {skills_feedback}
+
+    # **Overall Structure:**
+    # {structure_feedback}
+    # """
 
 def analyze_resume(resume_text: str, job_description: str) -> Dict:
     """
@@ -159,7 +166,7 @@ def analyze_resume(resume_text: str, job_description: str) -> Dict:
             "top_keywords": [{"word": word, "count": count} for word, count in spacy_results["keywords"]],
             "named_entities": spacy_results["entities"],
             "ats_score": ats_score,
-            "feedback": feedback.strip(),
+            "feedback": feedback,
         }
     except Exception as e:
         logging.error(f"Error during resume analysis: {str(e)}")
