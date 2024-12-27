@@ -39,14 +39,24 @@ def cached_distilbert_model():
     model = DistilBertModel.from_pretrained("distilbert-base-uncased")
     return tokenizer, model
 
-# Function to get DistilBERT embeddings
+# Function to split text into manageable chunks (for long documents)
+def split_text(text: str, max_length: int = 512):
+    tokens = text.split()
+    for i in range(0, len(tokens), max_length):
+        yield " ".join(tokens[i:i + max_length])
+
+# Function to get DistilBERT embeddings (improved for long texts)
 def get_distilbert_embeddings(text: str) -> torch.Tensor:
     try:
         tokenizer, model = cached_distilbert_model()
-        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
-        with torch.no_grad():
-            outputs = model(**inputs)
-        return outputs.last_hidden_state.mean(dim=1)  # Averaging token embeddings
+        embeddings = []
+        for chunk in split_text(text):
+            inputs = tokenizer(chunk, return_tensors="pt", truncation=True, padding=True, max_length=512)
+            with torch.no_grad():
+                outputs = model(**inputs)
+            chunk_embedding = outputs.last_hidden_state.mean(dim=1)
+            embeddings.append(chunk_embedding)
+        return torch.mean(torch.stack(embeddings), dim=0)  # Aggregate embeddings
     except Exception as e:
         logging.error(f"Error generating embeddings: {str(e)}")
         return torch.zeros(1, 768)  # Return a zero tensor in case of an error
@@ -197,7 +207,12 @@ def generate_feedback(resume_text: str, job_description: str) -> Dict[str, str]:
 
     except Exception as e:
         logging.error(f"Error generating feedback: {str(e)}")
-        raise
+        return {
+            "ATS Compatibility": "Error calculating ATS score.",
+            "Experience and Skills": "Error analyzing skills.",
+            "Overall Structure": "Error analyzing resume structure.",
+            "Soft Skills": "Error analyzing soft skills."
+        }
 
 # Function to analyze resume and generate feedback
 def analyze_resume(resume_text: str, job_description: str) -> Dict:
